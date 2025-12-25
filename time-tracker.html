@@ -154,6 +154,48 @@
             transform: none;
         }
 
+        .btn-break {
+            background: #ff9800;
+            color: white;
+        }
+
+        .btn-break:hover {
+            background: #f57c00;
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(255, 152, 0, 0.3);
+        }
+
+        .btn-break:disabled {
+            background: #ccc;
+            cursor: not-allowed;
+            transform: none;
+        }
+
+        .break-controls {
+            display: flex;
+            gap: 10px;
+            flex-wrap: wrap;
+            margin-top: 10px;
+        }
+
+        .on-break {
+            background: #ffe0b2;
+            padding: 15px;
+            border-radius: 8px;
+            border-left: 4px solid #ff9800;
+            margin-top: 10px;
+        }
+
+        .on-break h4 {
+            color: #e65100;
+            margin-bottom: 5px;
+        }
+
+        .on-break p {
+            color: #e65100;
+            font-size: 14px;
+        }
+
         .btn-report {
             background: #2196f3;
             color: white;
@@ -401,7 +443,19 @@
             white-space: pre-wrap;
             word-wrap: break-word;
             margin-bottom: 20px;
-            border: 1px solid #ddd;
+            border: 2px solid #ddd;
+            width: 100%;
+            min-height: 300px;
+            resize: vertical;
+            font-size: 14px;
+            line-height: 1.6;
+            transition: border-color 0.2s;
+        }
+
+        .report-text:focus {
+            outline: none;
+            border-color: #667eea;
+            background: #fafafa;
         }
 
         .report-actions {
@@ -493,6 +547,16 @@
                     <button class="btn btn-stop" id="stopBtn" disabled>⏹ 終了</button>
                 </div>
                 
+                <div class="break-controls">
+                    <button class="btn btn-break" id="breakStartBtn" disabled>☕ 休憩開始</button>
+                    <button class="btn btn-break" id="breakEndBtn" disabled>▶ 休憩終了</button>
+                </div>
+                
+                <div id="breakStatus" style="display: none;" class="on-break">
+                    <h4>休憩中 ☕</h4>
+                    <p>開始時刻: <span id="breakTime"></span></p>
+                </div>
+                
                 <button class="btn btn-report" id="reportBtn">📄 本日のレポートを作成</button>
             </div>
         </div>
@@ -516,8 +580,8 @@
 
     <div class="report-output" id="reportModal">
         <div class="report-content">
-            <h3>📊 本日のレポート</h3>
-            <div class="report-text" id="reportText"></div>
+            <h3>📊 本日のレポート <span style="font-size: 14px; color: #999; font-weight: normal;">（編集可能）</span></h3>
+            <textarea class="report-text" id="reportText" placeholder="レポートがここに表示されます..."></textarea>
             <div class="report-actions">
                 <button class="copy-btn" id="copyBtn">📋 コピー</button>
                 <button class="close-btn" id="closeBtn">閉じる</button>
@@ -534,7 +598,11 @@
             selectedItems: [],
             records: [],
             currentTask: null,
-            startTime: null
+            startTime: null,
+            onBreak: false,
+            breakStartTime: null,
+            taskBeforeBreak: null,
+            startTimeBeforeBreak: null
         };
 
         // ローカルストレージからデータを読み込み
@@ -819,6 +887,7 @@
             
             document.getElementById('startBtn').disabled = true;
             document.getElementById('stopBtn').disabled = false;
+            document.getElementById('breakStartBtn').disabled = false;
             
             const currentTask = document.getElementById('currentTask');
             const taskName = document.getElementById('taskName');
@@ -850,9 +919,98 @@
             
             document.getElementById('startBtn').disabled = false;
             document.getElementById('stopBtn').disabled = true;
+            document.getElementById('breakStartBtn').disabled = true;
             document.getElementById('currentTask').style.display = 'none';
             
             showMessage('作業を終了しました');
+        });
+
+        // 休憩開始ボタン
+        document.getElementById('breakStartBtn').addEventListener('click', () => {
+            if (state.onBreak) return;
+            
+            // 作業中の場合、現在の作業を一時終了
+            if (state.currentTask && state.startTime) {
+                const breakStart = new Date();
+                const record = {
+                    task: state.currentTask,
+                    start: state.startTime.toISOString(),
+                    end: breakStart.toISOString()
+                };
+                state.records.push(record);
+                
+                // 作業情報を保存
+                state.taskBeforeBreak = state.currentTask;
+                state.startTimeBeforeBreak = state.startTime;
+                
+                // 現在の作業をクリア
+                state.currentTask = null;
+                state.startTime = null;
+                document.getElementById('currentTask').style.display = 'none';
+            }
+            
+            // 休憩開始
+            state.onBreak = true;
+            state.breakStartTime = new Date();
+            
+            document.getElementById('breakStartBtn').disabled = true;
+            document.getElementById('breakEndBtn').disabled = false;
+            document.getElementById('startBtn').disabled = true;
+            document.getElementById('stopBtn').disabled = true;
+            
+            const breakStatus = document.getElementById('breakStatus');
+            const breakTime = document.getElementById('breakTime');
+            breakTime.textContent = formatTime(state.breakStartTime);
+            breakStatus.style.display = 'block';
+            
+            showMessage('休憩を開始しました');
+        });
+
+        // 休憩終了ボタン
+        document.getElementById('breakEndBtn').addEventListener('click', () => {
+            if (!state.onBreak || !state.breakStartTime) return;
+            
+            const breakEnd = new Date();
+            
+            // 休憩を記録
+            const breakRecord = {
+                task: '休憩',
+                start: state.breakStartTime.toISOString(),
+                end: breakEnd.toISOString()
+            };
+            state.records.push(breakRecord);
+            saveState();
+            
+            // 休憩状態をクリア
+            state.onBreak = false;
+            state.breakStartTime = null;
+            document.getElementById('breakStatus').style.display = 'none';
+            document.getElementById('breakEndBtn').disabled = true;
+            
+            // 休憩前に作業していた場合、自動的に再開
+            if (state.taskBeforeBreak) {
+                state.currentTask = state.taskBeforeBreak;
+                state.startTime = breakEnd;
+                
+                document.getElementById('stopBtn').disabled = false;
+                document.getElementById('breakStartBtn').disabled = false;
+                
+                const currentTask = document.getElementById('currentTask');
+                const taskName = document.getElementById('taskName');
+                const startTime = document.getElementById('startTime');
+                
+                taskName.textContent = state.currentTask;
+                startTime.textContent = formatTime(state.startTime);
+                currentTask.style.display = 'block';
+                
+                state.taskBeforeBreak = null;
+                state.startTimeBeforeBreak = null;
+                
+                showMessage('休憩を終了し、作業を再開しました');
+            } else {
+                document.getElementById('startBtn').disabled = false;
+                showMessage('休憩を終了しました');
+            }
         });
 
         // レポート生成
@@ -899,14 +1057,15 @@
             }
             report += summaryParts.join('　');
             
-            document.getElementById('reportText').textContent = report;
+            document.getElementById('reportText').value = report;
             document.getElementById('reportModal').classList.add('show');
         });
 
         // レポートのコピー
         document.getElementById('copyBtn').addEventListener('click', () => {
-            const text = document.getElementById('reportText').textContent;
-            navigator.clipboard.writeText(text).then(() => {
+            const textarea = document.getElementById('reportText');
+            textarea.select();
+            navigator.clipboard.writeText(textarea.value).then(() => {
                 showMessage('レポートをコピーしました');
             });
         });
