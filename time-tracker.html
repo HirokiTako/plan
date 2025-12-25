@@ -1052,10 +1052,34 @@
             
             report += 'サマリ：';
             const summaryParts = [];
-            for (const [task, time] of Object.entries(summary)) {
+            
+            // 時間の多い順にソート
+            const sortedSummary = Object.entries(summary).sort((a, b) => b[1].minutes - a[1].minutes);
+            
+            let totalMinutes = 0;
+            let breakMinutes = 0;
+            
+            for (const [task, time] of sortedSummary) {
                 summaryParts.push(`${task}：${time.minutes}分(${time.hours}h)`);
+                totalMinutes += time.minutes;
+                if (task === '休憩') {
+                    breakMinutes = time.minutes;
+                }
             }
             report += summaryParts.join('　');
+            
+            // 合計時間を追加（実働時間と休憩時間を分けて表示）
+            const workMinutes = totalMinutes - breakMinutes;
+            const workHours = (workMinutes / 60).toFixed(2);
+            const breakHours = (breakMinutes / 60).toFixed(2);
+            const totalHours = (totalMinutes / 60).toFixed(2);
+            
+            report += '\n\n';
+            if (breakMinutes > 0) {
+                report += `実働：${workMinutes}分(${workHours}h)　休憩：${breakMinutes}分(${breakHours}h)　合計：${totalMinutes}分(${totalHours}h)`;
+            } else {
+                report += `合計：${totalMinutes}分(${totalHours}h)`;
+            }
             
             document.getElementById('reportText').value = report;
             document.getElementById('reportModal').classList.add('show');
