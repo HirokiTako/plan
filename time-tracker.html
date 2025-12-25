@@ -1,0 +1,793 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>予実管理アプリ</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            padding: 20px;
+        }
+
+        .container {
+            display: flex;
+            gap: 20px;
+            background: white;
+            border-radius: 15px;
+            padding: 30px;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+            max-width: 1200px;
+            width: 100%;
+            height: 600px;
+        }
+
+        .left-section {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            gap: 20px;
+        }
+
+        .top-area {
+            flex: 1;
+            border: 2px dashed #ccc;
+            border-radius: 10px;
+            padding: 20px;
+            background: #f8f9fa;
+            min-height: 200px;
+        }
+
+        .top-area h3 {
+            margin-bottom: 15px;
+            color: #333;
+            font-size: 18px;
+        }
+
+        .selected-item {
+            background: #667eea;
+            color: white;
+            padding: 12px 20px;
+            border-radius: 8px;
+            margin-bottom: 10px;
+            cursor: grab;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            transition: transform 0.2s;
+        }
+
+        .selected-item:hover {
+            transform: translateX(-5px);
+        }
+
+        .selected-item:active {
+            cursor: grabbing;
+        }
+
+        .remove-btn {
+            background: rgba(255, 255, 255, 0.3);
+            border: none;
+            color: white;
+            padding: 5px 10px;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 12px;
+        }
+
+        .remove-btn:hover {
+            background: rgba(255, 255, 255, 0.5);
+        }
+
+        .drop-zone-active {
+            background: #e3f2fd;
+            border-color: #667eea;
+        }
+
+        .bottom-area {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            gap: 15px;
+        }
+
+        .time-controls {
+            display: flex;
+            gap: 10px;
+            flex-wrap: wrap;
+        }
+
+        .btn {
+            flex: 1;
+            min-width: 120px;
+            padding: 15px;
+            border: none;
+            border-radius: 8px;
+            font-size: 16px;
+            font-weight: bold;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+
+        .btn-start {
+            background: #4caf50;
+            color: white;
+        }
+
+        .btn-start:hover {
+            background: #45a049;
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(76, 175, 80, 0.3);
+        }
+
+        .btn-stop {
+            background: #f44336;
+            color: white;
+        }
+
+        .btn-stop:hover {
+            background: #da190b;
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(244, 67, 54, 0.3);
+        }
+
+        .btn-stop:disabled,
+        .btn-start:disabled {
+            background: #ccc;
+            cursor: not-allowed;
+            transform: none;
+        }
+
+        .btn-report {
+            background: #2196f3;
+            color: white;
+            width: 100%;
+        }
+
+        .btn-report:hover {
+            background: #0b7dda;
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(33, 150, 243, 0.3);
+        }
+
+        .current-task {
+            background: #fff3cd;
+            padding: 15px;
+            border-radius: 8px;
+            border-left: 4px solid #ffc107;
+        }
+
+        .current-task h4 {
+            color: #856404;
+            margin-bottom: 5px;
+        }
+
+        .current-task p {
+            color: #856404;
+            font-size: 14px;
+        }
+
+        .right-section {
+            width: 300px;
+            border-left: 2px solid #eee;
+            padding-left: 20px;
+            display: flex;
+            flex-direction: column;
+            gap: 15px;
+        }
+
+        .right-section h3 {
+            color: #333;
+            font-size: 18px;
+            margin-bottom: 10px;
+        }
+
+        .items-list {
+            flex: 1;
+            overflow-y: auto;
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }
+
+        .item-card {
+            background: #f8f9fa;
+            padding: 12px 15px;
+            border-radius: 8px;
+            cursor: grab;
+            border: 2px solid transparent;
+            transition: all 0.2s;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .item-card:hover {
+            background: #e9ecef;
+            border-color: #667eea;
+        }
+
+        .item-card:active {
+            cursor: grabbing;
+        }
+
+        .item-card-dragging {
+            opacity: 0.5;
+        }
+
+        .item-actions {
+            display: flex;
+            gap: 5px;
+        }
+
+        .icon-btn {
+            background: none;
+            border: none;
+            cursor: pointer;
+            padding: 5px;
+            color: #666;
+            font-size: 14px;
+        }
+
+        .icon-btn:hover {
+            color: #333;
+        }
+
+        .add-item-form {
+            display: flex;
+            gap: 5px;
+        }
+
+        .add-item-input {
+            flex: 1;
+            padding: 10px;
+            border: 2px solid #ddd;
+            border-radius: 5px;
+            font-size: 14px;
+        }
+
+        .add-item-input:focus {
+            outline: none;
+            border-color: #667eea;
+        }
+
+        .add-btn {
+            background: #667eea;
+            color: white;
+            border: none;
+            padding: 10px 15px;
+            border-radius: 5px;
+            cursor: pointer;
+            font-weight: bold;
+        }
+
+        .add-btn:hover {
+            background: #5568d3;
+        }
+
+        .report-output {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0, 0, 0, 0.8);
+            display: none;
+            justify-content: center;
+            align-items: center;
+            z-index: 1000;
+        }
+
+        .report-output.show {
+            display: flex;
+        }
+
+        .report-content {
+            background: white;
+            padding: 30px;
+            border-radius: 10px;
+            max-width: 600px;
+            width: 90%;
+            max-height: 80vh;
+            overflow-y: auto;
+        }
+
+        .report-content h3 {
+            margin-bottom: 20px;
+            color: #333;
+        }
+
+        .report-text {
+            background: #f5f5f5;
+            padding: 20px;
+            border-radius: 5px;
+            font-family: monospace;
+            white-space: pre-wrap;
+            word-wrap: break-word;
+            margin-bottom: 20px;
+            border: 1px solid #ddd;
+        }
+
+        .report-actions {
+            display: flex;
+            gap: 10px;
+        }
+
+        .report-actions button {
+            flex: 1;
+            padding: 12px;
+            border: none;
+            border-radius: 5px;
+            font-weight: bold;
+            cursor: pointer;
+        }
+
+        .copy-btn {
+            background: #4caf50;
+            color: white;
+        }
+
+        .copy-btn:hover {
+            background: #45a049;
+        }
+
+        .close-btn {
+            background: #666;
+            color: white;
+        }
+
+        .close-btn:hover {
+            background: #555;
+        }
+
+        .status-message {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            background: #4caf50;
+            color: white;
+            padding: 15px 25px;
+            border-radius: 5px;
+            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.3);
+            display: none;
+            z-index: 2000;
+        }
+
+        .status-message.show {
+            display: block;
+            animation: slideIn 0.3s ease-out;
+        }
+
+        @keyframes slideIn {
+            from {
+                transform: translateX(100%);
+                opacity: 0;
+            }
+            to {
+                transform: translateX(0);
+                opacity: 1;
+            }
+        }
+
+        .edit-mode input {
+            background: white;
+            border: 2px solid #667eea;
+            padding: 5px;
+            border-radius: 3px;
+            font-size: 14px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="left-section">
+            <div class="top-area" id="dropZone">
+                <h3>📋 現在の作業項目</h3>
+                <div id="selectedItems"></div>
+            </div>
+            
+            <div class="bottom-area">
+                <div id="currentTask" style="display: none;" class="current-task">
+                    <h4>作業中: <span id="taskName"></span></h4>
+                    <p>開始時刻: <span id="startTime"></span></p>
+                </div>
+                
+                <div class="time-controls">
+                    <button class="btn btn-start" id="startBtn">▶ 開始</button>
+                    <button class="btn btn-stop" id="stopBtn" disabled>⏹ 終了</button>
+                </div>
+                
+                <button class="btn btn-report" id="reportBtn">📄 本日のレポートを作成</button>
+            </div>
+        </div>
+        
+        <div class="right-section">
+            <h3>📂 項目の候補</h3>
+            <div class="items-list" id="itemsList"></div>
+            <div class="add-item-form">
+                <input type="text" id="newItemInput" class="add-item-input" placeholder="新しい項目を追加..." maxlength="30">
+                <button class="add-btn" id="addItemBtn">＋</button>
+            </div>
+        </div>
+    </div>
+
+    <div class="report-output" id="reportModal">
+        <div class="report-content">
+            <h3>📊 本日のレポート</h3>
+            <div class="report-text" id="reportText"></div>
+            <div class="report-actions">
+                <button class="copy-btn" id="copyBtn">📋 コピー</button>
+                <button class="close-btn" id="closeBtn">閉じる</button>
+            </div>
+        </div>
+    </div>
+
+    <div class="status-message" id="statusMessage"></div>
+
+    <script>
+        // アプリケーションの状態管理
+        const state = {
+            items: ['休憩', '資料作成', '顧客会議', 'その他'],
+            selectedItems: [],
+            records: [],
+            currentTask: null,
+            startTime: null
+        };
+
+        // ローカルストレージからデータを読み込み
+        function loadState() {
+            const saved = localStorage.getItem('timeTrackerState');
+            if (saved) {
+                try {
+                    const parsed = JSON.parse(saved);
+                    state.items = parsed.items || state.items;
+                    state.selectedItems = parsed.selectedItems || [];
+                    state.records = parsed.records || [];
+                } catch (e) {
+                    console.error('Failed to load state:', e);
+                }
+            }
+        }
+
+        // ローカルストレージにデータを保存
+        function saveState() {
+            const toSave = {
+                items: state.items,
+                selectedItems: state.selectedItems,
+                records: state.records.filter(r => {
+                    const recordDate = new Date(r.start).toDateString();
+                    const today = new Date().toDateString();
+                    return recordDate === today;
+                })
+            };
+            localStorage.setItem('timeTrackerState', JSON.stringify(toSave));
+        }
+
+        // ステータスメッセージを表示
+        function showMessage(text, duration = 2000) {
+            const message = document.getElementById('statusMessage');
+            message.textContent = text;
+            message.classList.add('show');
+            setTimeout(() => {
+                message.classList.remove('show');
+            }, duration);
+        }
+
+        // 項目リストの描画
+        function renderItems() {
+            const itemsList = document.getElementById('itemsList');
+            itemsList.innerHTML = '';
+            
+            state.items.forEach((item, index) => {
+                const itemCard = document.createElement('div');
+                itemCard.className = 'item-card';
+                itemCard.draggable = true;
+                itemCard.dataset.item = item;
+                itemCard.dataset.index = index;
+                
+                const itemName = document.createElement('span');
+                itemName.textContent = item;
+                itemName.className = 'item-name';
+                
+                const actions = document.createElement('div');
+                actions.className = 'item-actions';
+                
+                const editBtn = document.createElement('button');
+                editBtn.className = 'icon-btn';
+                editBtn.textContent = '✏️';
+                editBtn.onclick = (e) => {
+                    e.stopPropagation();
+                    editItem(index, itemCard, itemName);
+                };
+                
+                const deleteBtn = document.createElement('button');
+                deleteBtn.className = 'icon-btn';
+                deleteBtn.textContent = '🗑️';
+                deleteBtn.onclick = (e) => {
+                    e.stopPropagation();
+                    deleteItem(index);
+                };
+                
+                actions.appendChild(editBtn);
+                actions.appendChild(deleteBtn);
+                
+                itemCard.appendChild(itemName);
+                itemCard.appendChild(actions);
+                
+                // ドラッグイベント
+                itemCard.addEventListener('dragstart', handleDragStart);
+                itemCard.addEventListener('dragend', handleDragEnd);
+                
+                itemsList.appendChild(itemCard);
+            });
+        }
+
+        // 選択された項目の描画
+        function renderSelectedItems() {
+            const selectedItems = document.getElementById('selectedItems');
+            selectedItems.innerHTML = '';
+            
+            state.selectedItems.forEach((item, index) => {
+                const itemDiv = document.createElement('div');
+                itemDiv.className = 'selected-item';
+                itemDiv.textContent = item;
+                
+                const removeBtn = document.createElement('button');
+                removeBtn.className = 'remove-btn';
+                removeBtn.textContent = '×';
+                removeBtn.onclick = () => {
+                    state.selectedItems.splice(index, 1);
+                    renderSelectedItems();
+                    saveState();
+                };
+                
+                itemDiv.appendChild(removeBtn);
+                selectedItems.appendChild(itemDiv);
+            });
+        }
+
+        // 項目の編集
+        function editItem(index, card, nameSpan) {
+            const currentName = state.items[index];
+            const input = document.createElement('input');
+            input.type = 'text';
+            input.value = currentName;
+            input.maxLength = 30;
+            
+            nameSpan.replaceWith(input);
+            card.classList.add('edit-mode');
+            input.focus();
+            input.select();
+            
+            const finishEdit = () => {
+                const newName = input.value.trim();
+                if (newName && newName !== currentName) {
+                    state.items[index] = newName;
+                    saveState();
+                }
+                renderItems();
+            };
+            
+            input.addEventListener('blur', finishEdit);
+            input.addEventListener('keypress', (e) => {
+                if (e.key === 'Enter') {
+                    finishEdit();
+                }
+            });
+        }
+
+        // 項目の削除
+        function deleteItem(index) {
+            if (confirm(`「${state.items[index]}」を削除しますか？`)) {
+                state.items.splice(index, 1);
+                saveState();
+                renderItems();
+                showMessage('項目を削除しました');
+            }
+        }
+
+        // 項目の追加
+        function addItem() {
+            const input = document.getElementById('newItemInput');
+            const newItem = input.value.trim();
+            
+            if (!newItem) {
+                showMessage('項目名を入力してください');
+                return;
+            }
+            
+            if (state.items.length >= 10) {
+                showMessage('項目は最大10個までです');
+                return;
+            }
+            
+            if (state.items.includes(newItem)) {
+                showMessage('同じ名前の項目が既に存在します');
+                return;
+            }
+            
+            state.items.push(newItem);
+            input.value = '';
+            saveState();
+            renderItems();
+            showMessage('項目を追加しました');
+        }
+
+        // ドラッグ開始
+        function handleDragStart(e) {
+            e.dataTransfer.effectAllowed = 'copy';
+            e.dataTransfer.setData('text/plain', e.target.dataset.item);
+            e.target.classList.add('item-card-dragging');
+        }
+
+        // ドラッグ終了
+        function handleDragEnd(e) {
+            e.target.classList.remove('item-card-dragging');
+        }
+
+        // ドロップゾーンの設定
+        const dropZone = document.getElementById('dropZone');
+
+        dropZone.addEventListener('dragover', (e) => {
+            e.preventDefault();
+            e.dataTransfer.dropEffect = 'copy';
+            dropZone.classList.add('drop-zone-active');
+        });
+
+        dropZone.addEventListener('dragleave', () => {
+            dropZone.classList.remove('drop-zone-active');
+        });
+
+        dropZone.addEventListener('drop', (e) => {
+            e.preventDefault();
+            dropZone.classList.remove('drop-zone-active');
+            
+            const item = e.dataTransfer.getData('text/plain');
+            if (item && !state.selectedItems.includes(item)) {
+                state.selectedItems.push(item);
+                renderSelectedItems();
+                saveState();
+                showMessage(`「${item}」を追加しました`);
+            }
+        });
+
+        // 開始ボタン
+        document.getElementById('startBtn').addEventListener('click', () => {
+            if (state.selectedItems.length === 0) {
+                showMessage('作業項目を選択してください');
+                return;
+            }
+            
+            state.currentTask = state.selectedItems[0];
+            state.startTime = new Date();
+            
+            document.getElementById('startBtn').disabled = true;
+            document.getElementById('stopBtn').disabled = false;
+            
+            const currentTask = document.getElementById('currentTask');
+            const taskName = document.getElementById('taskName');
+            const startTime = document.getElementById('startTime');
+            
+            taskName.textContent = state.currentTask;
+            startTime.textContent = formatTime(state.startTime);
+            currentTask.style.display = 'block';
+            
+            showMessage('作業を開始しました');
+        });
+
+        // 終了ボタン
+        document.getElementById('stopBtn').addEventListener('click', () => {
+            if (!state.currentTask || !state.startTime) return;
+            
+            const endTime = new Date();
+            const record = {
+                task: state.currentTask,
+                start: state.startTime.toISOString(),
+                end: endTime.toISOString()
+            };
+            
+            state.records.push(record);
+            saveState();
+            
+            state.currentTask = null;
+            state.startTime = null;
+            
+            document.getElementById('startBtn').disabled = false;
+            document.getElementById('stopBtn').disabled = true;
+            document.getElementById('currentTask').style.display = 'none';
+            
+            showMessage('作業を終了しました');
+        });
+
+        // レポート生成
+        document.getElementById('reportBtn').addEventListener('click', () => {
+            const today = new Date();
+            const todayStr = `${today.getFullYear()}/${String(today.getMonth() + 1).padStart(2, '0')}/${String(today.getDate()).padStart(2, '0')}`;
+            
+            const todayRecords = state.records.filter(r => {
+                const recordDate = new Date(r.start).toDateString();
+                return recordDate === today.toDateString();
+            });
+            
+            if (todayRecords.length === 0) {
+                showMessage('本日の記録がありません');
+                return;
+            }
+            
+            let report = `${todayStr} 実績レポート\n\n`;
+            
+            const summary = {};
+            
+            todayRecords.forEach(record => {
+                const start = new Date(record.start);
+                const end = new Date(record.end);
+                const startStr = `${String(start.getHours()).padStart(2, '0')}:${String(start.getMinutes()).padStart(2, '0')}`;
+                const endStr = `${String(end.getHours()).padStart(2, '0')}:${String(end.getMinutes()).padStart(2, '0')}`;
+                
+                report += `${startStr}~${endStr}: ${record.task}\n\n`;
+                
+                const minutes = Math.round((end - start) / 1000 / 60);
+                const hours = (minutes / 60).toFixed(2);
+                
+                if (!summary[record.task]) {
+                    summary[record.task] = { minutes: 0, hours: 0 };
+                }
+                summary[record.task].minutes += minutes;
+                summary[record.task].hours = (summary[record.task].minutes / 60).toFixed(2);
+            });
+            
+            report += 'サマリ：';
+            const summaryParts = [];
+            for (const [task, time] of Object.entries(summary)) {
+                summaryParts.push(`${task}：${time.minutes}分(${time.hours}h)`);
+            }
+            report += summaryParts.join('　');
+            
+            document.getElementById('reportText').textContent = report;
+            document.getElementById('reportModal').classList.add('show');
+        });
+
+        // レポートのコピー
+        document.getElementById('copyBtn').addEventListener('click', () => {
+            const text = document.getElementById('reportText').textContent;
+            navigator.clipboard.writeText(text).then(() => {
+                showMessage('レポートをコピーしました');
+            });
+        });
+
+        // レポートを閉じる
+        document.getElementById('closeBtn').addEventListener('click', () => {
+            document.getElementById('reportModal').classList.remove('show');
+        });
+
+        // 新しい項目を追加
+        document.getElementById('addItemBtn').addEventListener('click', addItem);
+        document.getElementById('newItemInput').addEventListener('keypress', (e) => {
+            if (e.key === 'Enter') {
+                addItem();
+            }
+        });
+
+        // 時刻フォーマット
+        function formatTime(date) {
+            return `${String(date.getHours()).padStart(2, '0')}:${String(date.getMinutes()).padStart(2, '0')}`;
+        }
+
+        // 初期化
+        loadState();
+        renderItems();
+        renderSelectedItems();
+    </script>
+</body>
+</html>
