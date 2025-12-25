@@ -66,6 +66,7 @@
             justify-content: space-between;
             align-items: center;
             transition: transform 0.2s;
+            user-select: none;
         }
 
         .selected-item:hover {
@@ -74,6 +75,10 @@
 
         .selected-item:active {
             cursor: grabbing;
+        }
+
+        .selected-item.dragging {
+            opacity: 0.5;
         }
 
         .remove-btn {
@@ -185,6 +190,7 @@
             display: flex;
             flex-direction: column;
             gap: 15px;
+            position: relative;
         }
 
         .right-section h3 {
@@ -244,17 +250,78 @@
             color: #333;
         }
 
+        .floating-add-btn {
+            position: absolute;
+            bottom: 20px;
+            right: 20px;
+            width: 56px;
+            height: 56px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border: none;
+            border-radius: 50%;
+            font-size: 24px;
+            cursor: pointer;
+            box-shadow: 0 4px 12px rgba(102, 126, 234, 0.4);
+            transition: all 0.3s;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 100;
+        }
+
+        .floating-add-btn:hover {
+            transform: scale(1.1) rotate(90deg);
+            box-shadow: 0 6px 20px rgba(102, 126, 234, 0.6);
+        }
+
+        .add-item-panel {
+            position: absolute;
+            bottom: 85px;
+            right: 20px;
+            background: white;
+            border-radius: 10px;
+            padding: 20px;
+            box-shadow: 0 8px 24px rgba(0, 0, 0, 0.15);
+            width: 260px;
+            display: none;
+            z-index: 99;
+            animation: slideUp 0.3s ease-out;
+        }
+
+        .add-item-panel.show {
+            display: block;
+        }
+
+        @keyframes slideUp {
+            from {
+                opacity: 0;
+                transform: translateY(10px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        .add-item-panel h4 {
+            margin-bottom: 15px;
+            color: #333;
+            font-size: 16px;
+        }
+
         .add-item-form {
             display: flex;
-            gap: 5px;
+            gap: 8px;
         }
 
         .add-item-input {
             flex: 1;
-            padding: 10px;
-            border: 2px solid #ddd;
-            border-radius: 5px;
+            padding: 10px 12px;
+            border: 2px solid #e0e0e0;
+            border-radius: 8px;
             font-size: 14px;
+            transition: border-color 0.2s;
         }
 
         .add-item-input:focus {
@@ -266,14 +333,32 @@
             background: #667eea;
             color: white;
             border: none;
-            padding: 10px 15px;
-            border-radius: 5px;
+            padding: 10px 16px;
+            border-radius: 8px;
             cursor: pointer;
             font-weight: bold;
+            transition: background 0.2s;
         }
 
         .add-btn:hover {
             background: #5568d3;
+        }
+
+        .close-panel-btn {
+            position: absolute;
+            top: 10px;
+            right: 10px;
+            background: none;
+            border: none;
+            color: #999;
+            cursor: pointer;
+            font-size: 20px;
+            line-height: 1;
+            padding: 5px;
+        }
+
+        .close-panel-btn:hover {
+            color: #333;
         }
 
         .report-output {
@@ -415,9 +500,16 @@
         <div class="right-section">
             <h3>📂 項目の候補</h3>
             <div class="items-list" id="itemsList"></div>
-            <div class="add-item-form">
-                <input type="text" id="newItemInput" class="add-item-input" placeholder="新しい項目を追加..." maxlength="30">
-                <button class="add-btn" id="addItemBtn">＋</button>
+            
+            <button class="floating-add-btn" id="floatingAddBtn" title="新しい項目を追加">+</button>
+            
+            <div class="add-item-panel" id="addItemPanel">
+                <button class="close-panel-btn" id="closePanelBtn">×</button>
+                <h4>✨ 新しい項目</h4>
+                <div class="add-item-form">
+                    <input type="text" id="newItemInput" class="add-item-input" placeholder="項目名を入力..." maxlength="30">
+                    <button class="add-btn" id="addItemBtn">追加</button>
+                </div>
             </div>
         </div>
     </div>
@@ -484,6 +576,35 @@
             }, duration);
         }
 
+        // 項目リストにドロップイベントを設定
+        const itemsList = document.getElementById('itemsList');
+        itemsList.addEventListener('dragover', (e) => {
+            e.preventDefault();
+            e.dataTransfer.dropEffect = 'move';
+            itemsList.style.background = '#e3f2fd';
+        });
+
+        itemsList.addEventListener('dragleave', () => {
+            itemsList.style.background = '';
+        });
+
+        itemsList.addEventListener('drop', (e) => {
+            e.preventDefault();
+            itemsList.style.background = '';
+            
+            try {
+                const data = JSON.parse(e.dataTransfer.getData('text/plain'));
+                if (data.type === 'selected') {
+                    state.selectedItems.splice(data.index, 1);
+                    renderSelectedItems();
+                    saveState();
+                    showMessage('項目を削除しました');
+                }
+            } catch (err) {
+                console.error('Drop failed:', err);
+            }
+        });
+
         // 項目リストの描画
         function renderItems() {
             const itemsList = document.getElementById('itemsList');
@@ -541,16 +662,33 @@
             state.selectedItems.forEach((item, index) => {
                 const itemDiv = document.createElement('div');
                 itemDiv.className = 'selected-item';
-                itemDiv.textContent = item;
+                itemDiv.draggable = true;
+                itemDiv.dataset.index = index;
+                
+                const itemText = document.createElement('span');
+                itemText.textContent = item;
+                itemDiv.appendChild(itemText);
                 
                 const removeBtn = document.createElement('button');
                 removeBtn.className = 'remove-btn';
                 removeBtn.textContent = '×';
-                removeBtn.onclick = () => {
+                removeBtn.onclick = (e) => {
+                    e.stopPropagation();
                     state.selectedItems.splice(index, 1);
                     renderSelectedItems();
                     saveState();
                 };
+                
+                // ドラッグイベント
+                itemDiv.addEventListener('dragstart', (e) => {
+                    e.dataTransfer.effectAllowed = 'move';
+                    e.dataTransfer.setData('text/plain', JSON.stringify({ type: 'selected', index }));
+                    itemDiv.classList.add('dragging');
+                });
+                
+                itemDiv.addEventListener('dragend', (e) => {
+                    itemDiv.classList.remove('dragging');
+                });
                 
                 itemDiv.appendChild(removeBtn);
                 selectedItems.appendChild(itemDiv);
@@ -627,7 +765,7 @@
         // ドラッグ開始
         function handleDragStart(e) {
             e.dataTransfer.effectAllowed = 'copy';
-            e.dataTransfer.setData('text/plain', e.target.dataset.item);
+            e.dataTransfer.setData('text/plain', JSON.stringify({ type: 'candidate', item: e.target.dataset.item }));
             e.target.classList.add('item-card-dragging');
         }
 
@@ -653,12 +791,19 @@
             e.preventDefault();
             dropZone.classList.remove('drop-zone-active');
             
-            const item = e.dataTransfer.getData('text/plain');
-            if (item && !state.selectedItems.includes(item)) {
-                state.selectedItems.push(item);
-                renderSelectedItems();
-                saveState();
-                showMessage(`「${item}」を追加しました`);
+            try {
+                const data = JSON.parse(e.dataTransfer.getData('text/plain'));
+                if (data.type === 'candidate') {
+                    const item = data.item;
+                    if (item && !state.selectedItems.includes(item)) {
+                        state.selectedItems.push(item);
+                        renderSelectedItems();
+                        saveState();
+                        showMessage(`「${item}」を追加しました`);
+                    }
+                }
+            } catch (err) {
+                console.error('Drop failed:', err);
             }
         });
 
@@ -771,11 +916,39 @@
             document.getElementById('reportModal').classList.remove('show');
         });
 
+        // フローティング追加ボタン
+        document.getElementById('floatingAddBtn').addEventListener('click', () => {
+            const panel = document.getElementById('addItemPanel');
+            panel.classList.toggle('show');
+            if (panel.classList.contains('show')) {
+                document.getElementById('newItemInput').focus();
+            }
+        });
+
+        // パネルを閉じる
+        document.getElementById('closePanelBtn').addEventListener('click', () => {
+            document.getElementById('addItemPanel').classList.remove('show');
+        });
+
         // 新しい項目を追加
-        document.getElementById('addItemBtn').addEventListener('click', addItem);
+        document.getElementById('addItemBtn').addEventListener('click', () => {
+            addItem();
+            document.getElementById('addItemPanel').classList.remove('show');
+        });
+        
         document.getElementById('newItemInput').addEventListener('keypress', (e) => {
             if (e.key === 'Enter') {
                 addItem();
+                document.getElementById('addItemPanel').classList.remove('show');
+            }
+        });
+
+        // パネル外をクリックで閉じる
+        document.addEventListener('click', (e) => {
+            const panel = document.getElementById('addItemPanel');
+            const btn = document.getElementById('floatingAddBtn');
+            if (!panel.contains(e.target) && !btn.contains(e.target)) {
+                panel.classList.remove('show');
             }
         });
 
